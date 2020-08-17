@@ -2,7 +2,7 @@
 Pod::Spec.new do |s|
 
   s.name         = 'Upshot-iOS-SDK'
-  s.version      = '1.5.7'
+  s.version      = '1.6'
   s.summary      = 'Upshot.ai User Engagement SDK for iOS'
 
   s.description  = <<-DESC
