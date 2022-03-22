@@ -2,7 +2,7 @@
 Pod::Spec.new do |s|
 
   s.name         = 'Upshot-iOS-SDK'
-  s.version      = '1.6.1'
+  s.version      = '1.6.3'
   s.summary      = 'Upshot.ai User Engagement SDK for iOS'
 
   s.description  = <<-DESC
@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
   s.social_media_url   = 'https://twitter.com/upshot_ai'
 
   s.platform     = :ios
-  s.ios.deployment_target = '8.0'
+  s.ios.deployment_target = '9.0'
   s.license      = { :type => 'MIT', :file => 'LICENSE' }
   s.author       = { 'Upshot' => 'developer@upshot.ai' }
 
