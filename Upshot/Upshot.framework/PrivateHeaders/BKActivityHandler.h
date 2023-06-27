@@ -13,6 +13,7 @@ typedef void(^_Nullable BKResponseCompletionBlock)(id _Nullable responseData, NS
 @interface BKActivityHandler : NSObject
 
 @property (nonatomic, copy) BKResponseCompletionBlock completionBlock;
+@property (nonatomic, strong) NSMutableArray * _Nullable failedActivityIds;
 
 + (BKActivityHandler * _Nonnull)defaultHandler;
 

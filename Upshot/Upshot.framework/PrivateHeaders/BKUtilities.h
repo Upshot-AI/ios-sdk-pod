@@ -71,6 +71,11 @@
 + (BOOL)deviceisiPhone4;
 
 + (NSMutableAttributedString *)trimNewlineStarAndEndPosition:(NSMutableAttributedString *)attributeString;
+
 + (CGFloat)getQuestionDefaultHeight:(NSString *)content width:(CGFloat)width;
+
++ (CGFloat)getLabelHeight:(NSString *)content width:(CGFloat)width font:(UIFont *)font;
+
++ (CGFloat)getButtonWidth:(UIButton *)button width:(CGFloat)width;
 
 @end

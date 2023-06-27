@@ -52,6 +52,12 @@ function processInbox(inboxString, payloadString) {
     
 }
 
+function processActivity(filterString, payloadString) {
+    
+    return $BK$.processActivity(filterString, payloadString);
+    
+}
+
 function setSurveyRules(filter) {
 
         $BK$.setSurveyRules(filter);
@@ -62,4 +68,22 @@ function evaluateSurveyResponse(response) {
     return $BK$.evaluateSurveyResponse(response);
 }
 
+function processStreakData(response) {
 
+    return $BK$.processStreakData(response, function(ruleId,ruleName,notification,keywords,timer,pageName) {
+
+        if (typeof notification !== 'undefined') {
+            liveRuleEngine.executedRuleForNotificationWithRuleId(notification, ruleId);
+        } else if(typeof pageName !== 'undefined') {
+            liveRuleEngine.executePageViewSpentTimeWithScreenName(timer,pageName);
+        } else if(typeof timer !== 'undefined') {
+            liveRuleEngine.startRuleExecutionStatusCheckTimerWithDuration(timer);
+        } else {
+            liveRuleEngine.executedRuleForID(ruleId);
+        }
+    });
+}
+
+function getStreakData() {
+    return $BK$.getStreakData();
+}

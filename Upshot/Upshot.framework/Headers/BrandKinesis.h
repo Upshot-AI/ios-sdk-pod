@@ -4,7 +4,7 @@
 //
 //  Created by [x]cube LABS on 20/08/14.
 //  Copyright (c) 2014 [x]cube LABS. All rights reserved.
-//  Upshot Version 1.6.3
+//  Upshot SDK Version 1.6.5
 
 #import <Foundation/Foundation.h>
 #import <CoreLocation/CoreLocation.h>
@@ -15,25 +15,6 @@
 #import <UIKit/UIKit.h>
 
 
-
-typedef NS_ENUM(NSUInteger, BKTutorialViewPlacement) {
-    BKTutorialViewPlacementLeft,
-    BKTutorialViewPlacementRight,
-    BKTutorialViewPlacementTop,
-    BKTutorialViewPlacementBottom,
-};
-
-
-
-typedef NS_ENUM(NSUInteger, BKTutorialTextPlacement) {
-    BKTutorialTextPlacementLeft,
-    BKTutorialTextPlacementRight,
-    BKTutorialTextPlacementTop,
-    BKTutorialTextPlacementBottom,
-};
-
-
-
 typedef void(^_Nullable BrandKinesisActivityWillAppear)(BOOL willAppear, BKActivityType activityType);
 typedef void(^_Nullable BrandKinesisActivityDidAppear)(BOOL didAppear, BKActivityType activityType);
 typedef void(^_Nullable BrandKinesisActivityDidDismiss)(BOOL didDismiss, BKActivityType activityType);
@@ -42,6 +23,8 @@ typedef void(^_Nullable BrandKinesisCompletionBlock)(NSError * _Nullable error);
 typedef void(^_Nullable BrandKinesisFetchCompletion)(id _Nullable responseObject, NSError * _Nullable error );
 typedef void(^_Nullable BrandKinesisUserStateCompletion)(BOOL status, NSError * _Nullable error);
 typedef void(^_Nullable BrandKinesisRewardsCompletionBlock)(NSDictionary * _Nullable response, NSString * _Nullable errorMessage);
+typedef void(^_Nullable BrandKinesisGetNotificationCompletion)(NSDictionary * _Nullable response, NSString * _Nullable errorMessage);
+typedef void(^_Nullable BrandKinesisStreaksCompletionBlock)(NSDictionary * _Nullable response, NSString * _Nullable errorMessage);
 
 /**
  * Key used to define the current screen name
@@ -58,44 +41,6 @@ BK_EXTERN NSString *_Null_unspecified const BKPageViewNative;
  Use this key to create web pageView event
  */
 BK_EXTERN NSString *_Null_unspecified const BKPageViewWeb;
-
-/**
- * Key used to define ItemID for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemID;
-/**
- * Key used to define category for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemCategory;
-/**
- * Key used to define sub category for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemSubCategory;
-/**
- * Key used to define item price for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemPrice;
-/**
- * Key used to define item currency for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemCurrency;
-/**
- * Key used to define items purchased for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemQuantity;
-/**
- * Key used to define item purchased date for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemsPurchasedDate;
-/**
- * Key used to define items purchased total for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemsPurchasedTotal;
-/**
- * Key used to define purchased state for BKEventInAppPurchase
- */
-BK_EXTERN NSString *_Null_unspecified const BKIAPItemPurchasedState;
-
 BK_EXTERN NSString *_Null_unspecified const BKAttributionSource;
 BK_EXTERN NSString *_Null_unspecified const BKUTM_Source;
 BK_EXTERN NSString *_Null_unspecified const BKUTM_Medium;
@@ -125,6 +70,8 @@ BK_EXTERN NSString *_Null_unspecified const BKUTM_Campaign;
  This will be YES if the brand kinesis is authenticated
  */
 @property (nonatomic, readonly, getter = isAuthenticated) BOOL isAuthenticated;
+
+@property (nonatomic, readonly, getter = isInitCompleted) BOOL isInitCompleted;
 
 /*!
  This will Get Current SDK Version if the brand kinesis is authenticated
@@ -349,6 +296,31 @@ BK_EXTERN NSString *_Null_unspecified const BKUTM_Campaign;
 
 - (void)showEnhancedPushNotification:(UIViewController * _Nonnull)controller withContent:(UNNotification * _Nonnull)notification;
 
+- (void)showInboxController:(NSDictionary * _Nonnull)options;
+
+- (void)getNotificationsWith:(NSInteger)limit
+                loadmore:(BOOL)loadMore
+            onCompletion:(BrandKinesisGetNotificationCompletion)completionBlock;
+
+- (void)getUnreadNotificationsCount:(NSInteger)pushLimit
+                   notificationType:(BKInboxMessageType)inboxType
+                       onCompletion:(void (^_Nullable)(NSInteger  pushCount))completionBlock;
+
+
+//* Internal Methods For Plugin*//
+
+- (void)setTechnologyType:(NSString *_Nonnull)type;
+
+- (void)activityPresentedCallback:(NSDictionary *_Nonnull)payload;
+
+- (void)activitySkipCallback:(NSDictionary *_Nonnull)payload;
+
+- (void)activityRespondCallback:(NSDictionary *_Nonnull)payload;
+
+- (void)activityRedirectionCallback:(NSDictionary *_Nonnull)payload;
+
+//* Streaks*//
+- (void)getStreaksDataWithCompletionBlock:(BrandKinesisStreaksCompletionBlock _Nullable)completionBlock;
 
 @end
 
@@ -377,10 +349,15 @@ BK_EXTERN NSString *_Null_unspecified const BKUTM_Campaign;
 
 - (void)brandkinesisCampaignDetailsLoaded;
 
+- (void)brandKinesisInboxActivityPresented;
+
+- (void)brandKinesisInboxActivityDismissed;
 
 - (nonnull NSArray *)brandKinesisExludeActivitiesForShare;
 
 - (void)brandKinesisCarouselPushClickPayload:(NSDictionary *_Nonnull)payload;
+
+- (void)brandKinesisInteractiveTutorialInfoForPlugin:(nonnull NSString *)jsonData;
 
 
 /*!

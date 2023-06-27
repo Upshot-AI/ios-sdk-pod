@@ -89,6 +89,7 @@ typedef NS_ENUM(NSUInteger, BKEventSubType){
     BKEventAdDisplayed           = 126,
     BKEventAdClicked             = 127,
     BKEventLocalPushReceived     = 128,
+    BKEventActivityDynamicEvent  = 129,
     /*HeatMaps*/
     BKEventHeatmapTap            = 130,
     BKEventHeatmapDoubleTap      = 131,
@@ -117,9 +118,14 @@ typedef NS_ENUM(NSInteger, BKCloseEventTimeType) {
 
 };
 
+typedef NS_ENUM(NSInteger, BKInboxMessageType) {
+   
+    OnlyInAppNudges = 1,
+    OnlyPushNotifications,
+    AllNotifications
+};
+
 //App ID, owner ID, DevID
-
-
 BK_EXTERN NSString *const BKFetchLocation;
 BK_EXTERN NSString *const BKApplicationID;
 BK_EXTERN NSString *const BKApplicationOwnerID;
@@ -127,6 +133,12 @@ BK_EXTERN NSString *const BKExceptionHandler;
 BK_EXTERN NSString *const BKEnableDebugLogs;
 BK_EXTERN NSString *const BKUseCellularData;
 
+BK_EXTERN NSString *const BKInboxType;
+BK_EXTERN NSString *const BKShowReadNotifications;
+BK_EXTERN NSString *const BKEnableLoadMore;
+BK_EXTERN NSString *const BKPushFetchLimit;
+BK_EXTERN NSString *const BKDisplayMsgCount;
+BK_EXTERN NSString *const BKDisplayTime;
 
 
 #endif

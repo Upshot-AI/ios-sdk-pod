@@ -12,5 +12,6 @@
 
 - (NSString *)replaceStringWithVariables:(NSDictionary *)variables;
 
+- (NSMutableAttributedString *)convertHtmlToNSAttributedString: (UIFont *)font;
 
 @end

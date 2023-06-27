@@ -22,6 +22,7 @@ var $BK$; // global reference for BK library
         var aggregatesModifiedCallback = void 0;
         var aggregatesMap = [];
         var pushRepeatCounts = {};
+        var streakPayloadsFromServer = {};
 
         /**
         BKDate util
@@ -31,17 +32,46 @@ var $BK$; // global reference for BK library
                 var today = new Date();
                 return Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), today.getUTCHours(), today.getUTCMinutes(), today.getUTCSeconds(), today.getUTCMilliseconds());
             },
-            utcToday: function() {
+            utcToday: function(timeZone, dashboardTimeString) {
                 var today = new Date();
-                return Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getDate(), 0, 0, 0, 0);
+                if(timeZone === 'dashboardtimezone' && dashboardTimeString != null){
+                    var d = new Date();
+                    var c = d.toLocaleString('en-US', {timeZone: dashboardTimeString});
+                    var today = new Date(c)
+                    return Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+                } else if (timeZone === 'usertimezone') {
+                    return Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+                } else {
+                    return Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0);
+                }
             },
-            utcCurrentMonth: function() {
+            utcCurrentMonth: function(timeZone, dashboardTimeString) {
+              if(timeZone === 'dashboardtimezone' && dashboardTimeString != null) {
+                var d = new Date();
+                var c = d.toLocaleString('en-US', {timeZone: dashboardTimeString});
+                var today = new Date(c)
+                return Date.UTC(today.getFullYear(), today.getMonth(), 1, 0, 0, 0, 0);
+              } else if(timeZone === 'usertimezone') {
+                var today = new Date();
+                return Date.UTC(today.getFullYear(), today.getMonth(), 1, 0, 0, 0, 0);
+              } else {
                 var today = new Date();
                 return Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1, 0, 0, 0, 0);
+              }
             },
-            utcCurrentYear: function() {
-                var today = new Date();
-                return Date.UTC(today.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
+            utcCurrentYear: function(timeZone, dashboardTimeString) {
+                if(timeZone === 'dashboardTimeZone' && dashboardTimeString != null) {
+                  var d = new Date();
+                  var c = d.toLocaleString('en-US', {timeZone: dashboardTimeString});
+                  var today = new Date(c)
+                  return Date.UTC(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+                } else if (timeZone === 'usertimezone') {
+                  var today = new Date();
+                  return Date.UTC(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+                } else {
+                  var today = new Date();
+                  return Date.UTC(today.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
+                }
             },
             getDay: function(t) {
                 var today = new Date(t);
@@ -128,7 +158,7 @@ var $BK$; // global reference for BK library
                                 if (upshotEvent.startTime) {
                                     t = bkDate.getDay(upshotEvent.startTime)
                                 } else {
-                                    t = bkDate.utcToday().toString();
+                                    t = bkDate.utcToday(aggregate.timezone, aggregate.dtz).toString();
                                 }
 
                                 if (aggregate.attribute in upshotEvent.params) {
@@ -176,24 +206,113 @@ var $BK$; // global reference for BK library
 
                             }
 
+                        } else if(aggregate.attribute === "AppLaunch" && aggregate.attribute_operator === "occurs") {
+                          if (!("value" in aggregate)) {
+                              aggregate["value"] = 1;
+                          } else {
+                              aggregate.value += 1;
+                          }
                         }
 
                     }
 
-                    if (aggregate.aggregate_type === "attributevalues") {
+                    if (aggregate.aggregate_type === "attributevalues" && aggregate.attribute !== "page") {
                         var att_operator = aggregate.attribute_operator;
                         if (!("attribute_operator" in aggregate) || (aggregate.attribute_operator === null)) {
                             att_operator = "eq";
                         }
 
-                        var containsOperators = ['containsone', 'containsnone', 'containsall', 'between']
+                        var containsOperators = ['containsone', 'containsnone', 'containsall', 'between', 'before', 'after', 'onaday'];
 
                         if (containsOperators.indexOf(aggregate.attribute_operator) !== -1) {
-                            var attribute_value = aggregate.attribute_values
-                            if (logicalOperator[att_operator](upshotEvent.params[aggregate.attribute], aggregate.attribute_values)) {
-                                foundAttribute = attribute_value;
+                            if(aggregate.dataType === 'UnixTimestamp'){
+                              if(aggregate.timezone === 'dashboardtimezone' && aggregate.dtz != null) {
+                                if(att_operator === 'between'){
+                                var attribute_value = aggregate.attribute_values;
+                                var currentTime = parseInt(aggregate.attribute_values[0]);
+                                var d = new Date(currentTime);
+                                var c = d.toLocaleString('en-US', {timeZone: aggregate.dtz});
+                                var today = new Date(c)
+                                var v2 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+                                var attribute_value = aggregate.attribute_values;
+                                var currentTime = parseInt(aggregate.attribute_values[1]);
+                                var d = new Date(currentTime);
+                                var c = d.toLocaleString('en-US', {timeZone: aggregate.dtz});
+                                var today = new Date(c)
+                                var v3 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+                                var currentSDKTime = parseInt(upshotEvent.params[aggregate.attribute]);
+                                var d = new Date(currentSDKTime);
+                                var c = d.toLocaleString('en-US', {timeZone: aggregate.dtz});
+                                var today = new Date(c)
+                                var v1 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+                                if (logicalOperator[att_operator](v1, [v2, v3])) {
+                                    foundAttribute = attribute_value;
+                                }
+                                } else {
+                                var attribute_value = aggregate.attribute_values;
+                                var currentTime = parseInt(aggregate.attribute_values);
+                                var d = new Date(currentTime);
+                                var c = d.toLocaleString('en-US', {timeZone: aggregate.dtz});
+                                var today = new Date(c)
+                                var v2 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+                                var currentSDKTime = parseInt(upshotEvent.params[aggregate.attribute]);
+                                var d = new Date(currentSDKTime);
+                                var c = d.toLocaleString('en-US', {timeZone: aggregate.dtz});
+                                var today = new Date(c)
+                                var v1 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+                                if (logicalOperator[att_operator](v1, [v2])) {
+                                    foundAttribute = attribute_value;
+                                }
+                                }
+                              } else if (aggregate.timezone === 'usertimezone') {
+                                if(att_operator === 'between'){
+                                  var attribute_value = aggregate.attribute_values;
+                                  var todayServer = parseInt(aggregate.attribute_values[0])
+                                  var today = new Date(todayServer)
+                                  var v2 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+  
+                                  var attribute_value = aggregate.attribute_values;
+                                  var todayServer = parseInt(aggregate.attribute_values[1])
+                                  var today = new Date(todayServer)
+                                  var v3 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+  
+                                  var todaySDK = parseInt(upshotEvent.params[aggregate.attribute])
+                                  var today = new Date(todaySDK)
+                                  var v1 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+                                  if (logicalOperator[att_operator](v1, [v2, v3])) {
+                                      foundAttribute = attribute_value;
+                                  }
+                                } else {
+                                  var attribute_value = aggregate.attribute_values;
+                                  var todayServer = parseInt(aggregate.attribute_values)
+                                  var today = new Date(todayServer)
+                                  var v2 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+  
+                                  var todaySDK = parseInt(upshotEvent.params[aggregate.attribute])
+                                  var today = new Date(todaySDK)
+                                  var v1 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+                                  if (logicalOperator[att_operator](v1, [v2])) {
+                                      foundAttribute = attribute_value;
+                                  }
+                                }
+                              } else {
+                                var attribute_value = aggregate.attribute_values
+                                if (logicalOperator[att_operator](upshotEvent.params[aggregate.attribute], aggregate.attribute_values)) {
+                                    foundAttribute = attribute_value;
+                                }
+                              }
+                            } else {
+                              var attribute_value = aggregate.attribute_values
+                              if (logicalOperator[att_operator](upshotEvent.params[aggregate.attribute], aggregate.attribute_values)) {
+                                  foundAttribute = attribute_value;
+                              }
                             }
-                        }else if ("params" in upshotEvent) {
+                        } else if ("params" in upshotEvent) {
                             for (var valueIndex = 0, vlen = aggregate.attribute_values.length; valueIndex < vlen; valueIndex++) {
                                 var attribute_value = aggregate.attribute_values[valueIndex];
 
@@ -275,21 +394,21 @@ var $BK$; // global reference for BK library
                         }
 
                         var dayUtc = aggregate.slidingType === "days"
-                            ? bkDate.utcToday().toString()
+                            ? bkDate.utcToday(aggregate.timezone, aggregate.dtz).toString()
                             : aggregate.slidingType === "months"
-                                ? bkDate.utcCurrentMonth().toString()
+                                ? bkDate.utcCurrentMonth(aggregate.timezone, aggregate.dtz).toString()
                                 :
                                 /* aggregate.slidingType==="years"? */
-                                bkDate.utcCurrentYear.toString();
+                                bkDate.utcCurrentYear(aggregate.timezone, aggregate.dtz).toString();
 
                         if (dayUtc in aggregate.dayCountMap) {
                             aggregate.dayCountMap[dayUtc] += 1;
                         } else {
                             aggregate.dayCountMap[dayUtc] = 1;
                         }
-                    } else if (aggregate.aggregate_type === "attributevalues") {
+                    } else if (aggregate.aggregate_type === "attributevalues" && aggregate.attribute !== "page") {
 
-                        if (!foundAttribute) {
+                        if (foundAttribute === undefined) {
                             aggregate.evaluated = false;
                             continue;
                         }
@@ -417,6 +536,12 @@ var $BK$; // global reference for BK library
             "lt": function(v1, v2) {
                 return isValidOperands(v1, v2) && v1 < v2;
             },
+            "gte" : function(v1, v2) {
+                return isValidOperands(v1, v2) && v1 >= v2;
+            },
+            "lte" : function(v1,v2) {
+                return isValidOperands(v1, v2) && v1 <= v2;
+            },
             "eq": function(v1, v2) {
                 return isValidOperands(v1, v2) && v1 == v2;
             },
@@ -472,78 +597,136 @@ var $BK$; // global reference for BK library
                     return found;
                 })()
             },
+            "before": function (v1,v2){
+              return isValidOperands(v1, v2) && (function (){
+                  var found = false;
+
+                  try {
+                      if (Number(v1) < Number(v2[0])) {
+                          found = true;
+                      }
+                  } catch (e) {
+
+                  }
+
+                  return found;
+              })()
+            },
+            "after": function (v1,v2){
+              return isValidOperands(v1, v2) && (function (){
+                  var found = false;
+
+                  try {
+                    if (Number(v1) > Number(v2[0])) {
+                        found = true;
+                    }
+                  } catch (e) {
+
+                  }
+
+                  return found;
+              })()
+            },
+            "onaday": function (v1,v2){
+              return isValidOperands(v1, v2) && (function (){
+                  var found = false;
+
+                  try {
+                    if (Number(v2[0]) <= Number(v1)) {
+                        found = true;
+                    }
+                  } catch (e) {
+
+                  }
+
+                  return found;
+              })()
+            },
             "containsone": function (v1, v2){
                 return isValidOperands(v1, v2) && (function (){
                     var found = false;
+                    var newV1 = v1.split(",").map(function(v){return v.toLowerCase()});
+                    var newV2 = v2.map(function(v){return v.toLowerCase()});
+                    found = newV1.some(function(v){return newV2.includes(v)})
 
-                    v2.every(function (val, key){
-
-                        if (v1.toLowerCase().indexOf(val.toLowerCase()) !== -1) {
-                            found = true;
-                            keywords.push(val);
-                            return false;
-                        } else {
-                            return true;
-                        }
-
-                    })
                     return found;
                 })()
             },
             "containsnone": function (v1, v2){
                 return isValidOperands(v1, v2) && (function (){
                     var found = false;
+                    var newV1 = v1.split(",").map(function(v){return v.toLowerCase()});
+                    var newV2 = v2.map(function(v){return v.toLowerCase()});
+                    found = newV1.some(function(v){return newV2.includes(v)})
 
-                    v2.every(function (val, key){
-
-                        if (v1.toLowerCase().indexOf(val.toLowerCase()) !== -1) {
-                            found = true;
-                            keywords.push(val);
-                            return false;
-                        } else {
-                            return true;
-                        }
-
-                    })
                     return !found;
                 })()
             },
             "containsall": function (v1, v2){
                 return isValidOperands(v1, v2) && (function (){
-                    var found = true;
+                    var found = false;
+                    var newV1 = v1.split(",").map(function(v){return v.toLowerCase()});
+                    var newV2 = v2.map(function(v){return v.toLowerCase()});
+                    found = newV2.every(function(val) { return newV1.indexOf(val) >= 0});
 
-                    v2.every(function (val, key){
-
-                        if (v1.toLowerCase().indexOf(val.toLowerCase()) === -1) {
-                            found = false;
-                            return false;
-                        } else {
-                            keywords.push(val);
-                            return true;
-                        }
-
-                    })
                     return found;
                 })()
             },
             'selected': function(v1, v2, qType, rating) {
-                if (qType === 9 || qType === 7 || qType === 11) {
+                if (qType === 9 || qType === 7 || qType === 10 || qType === 11) {
                     var result = false;
                     if (v1 === 'any') {
                         for (var key in v2) {
                             if (v2.hasOwnProperty(key)) {
-                                if (v2[key] === rating) {
+                                if(rating === 'any') {
                                     result = true;
+                                } else {
+                                    if(typeof (rating) === 'string') {
+                                      var exp = rating.split('-');
+                                      if(exp[1]!== undefined) {
+                                        if(parseInt(exp[0]) <= v2[key] && v2[key] <= parseInt(exp[1])) {
+                                          result = true;
+                                          }
+                                        }
+                                      } else if (v2[key] === parseInt(rating)) {
+                                          result = true;
+                                    }
                                 }
                             }
                         }
-
                         return result;
                     } else {
-                        return isValidOperands(v1, v2) && (v1 in v2) && (v2[v1] === rating)
+                        if (rating === 'any') {
+                            var keys = Object.keys(v2);
+                            return isValidOperands(v1, keys) && (keys.indexOf(v1) !== -1)
+                        } else if (rating === undefined && (qType === 10 || qType === 11)) {
+                            var exp = v1.split('-');
+                            for(var key in v2) {
+                                if(exp[1] !== undefined) {
+                                    if(parseInt(exp[0])<= v2[key] && v2[key] <= parseInt(exp[1])) {
+                                        result = true;
+                                    }
+                                } else if(parseInt(exp[0]) === v2[key]){
+                                    result = true;
+                                }
+                            }
+                            return result
+                        } else {
+                            if (typeof rating === "string") {
+                                var exp = rating.split('-');
+                                if(exp[1] !== undefined) {
+                                    if(parseInt(exp[0])<= v2[v1] && v2[v1] <= parseInt(exp[1])) {
+                                        result = true;
+                                    }
+                                }
+                            } else {
+                                result = isValidOperands(v1, v2) && (v1 in v2) && (v2[v1] === parseInt(rating))
+                            }
+                            return result
+                        }
                     }
-                } else {
-                    return isValidOperands(v1, v2) && (v2.includes(v1))
+                }  else {
+                    return isValidOperands(v1, v2) && (v2.indexOf(v1) !== -1)
                 }
 
             },
@@ -640,7 +823,7 @@ var $BK$; // global reference for BK library
         /**
          * evaluates custom events based on provided variables
          */
-        function evaluateCustomEvents(variables, dataProvider, filterCode, rule, expSubType) {
+        function evaluateCustomEvents(variables, dataProvider, filterCode, rule, expSubType, upshotEvent) {
 
             var result = false;
 
@@ -663,7 +846,7 @@ var $BK$; // global reference for BK library
             } else {
                 result = evaluateCustomKeyEvents(variable, dataProvider, filterCode, variables[1],
                 /* second object in variables will be operation */
-                rule, expSubType);
+                rule, expSubType, upshotEvent);
             }
             return result;
         }
@@ -686,10 +869,10 @@ var $BK$; // global reference for BK library
 
             if (variable.key[0] === 'any' && !(qType === 9 || qType === 7 || qType === 11)) {
 
-                if (variable.operator == 'selected' && upshotEvent.response.length > 0) {
+                if (variable.operator === 'selected' && upshotEvent.response.length > 0) {
                     nextQueId = variable.values;
                     return true;
-                } else if(variable.operator == 'notselected' && upshotEvent.response.length === 0) {
+                } else if(variable.operator === 'notselected' && upshotEvent.response.length === 0) {
                     nextQueId = variable.values;
                     return true;
                 }
@@ -698,7 +881,7 @@ var $BK$; // global reference for BK library
 
             if (qType === 1 && upshotEvent.explanation !== '') {
                 responses.push('responded')
-            } else if ((qType === 4 || qType === 8 || qType === 10 || qType == 15) && upshotEvent.response.length > 0) {
+            } else if ((qType === 4 || qType === 8 || qType === 10 || qType === 15) && upshotEvent.response.length > 0) {
                 responses.push(upshotEvent.response[0].explanation)
             } else {
                 upshotEvent.response.forEach(function (val, key){
@@ -781,7 +964,7 @@ var $BK$; // global reference for BK library
                         result = dummyAggregates.indexOf(matchedAggregate.id) != -1;
                     }
                 } else {
-                    result = evaluateCustomEvents(expression.variable, matchedAggregate, filterRef.code, rule, expression.event);
+                    result = evaluateCustomEvents(expression.variable, matchedAggregate, filterRef.code, rule, expression.event, upshotEvent);
                 }
 
             } else if (expression.type === 'Location' || expression.event === 106) {
@@ -801,14 +984,75 @@ var $BK$; // global reference for BK library
                     result = evaluateResponse(expression.variable, upshotEvent, expression.qType);
                 }
             } else if (expression.type === 'PreDefinedEvents' && expression.event === 'Sessions') {
+                if(expression.variable[0].key === "AppLaunch" && upshotEvent.params === "AppLaunch"){
+                  if(expression.variable[0].operator === "occurence"){
+                    result = true;
+                  } else {
+                    var aggId = rule.codes[filterRef.code];
+                    var matchedAggregate = undefined;
+                    for (var index = 0, ilen = aggregatesMap.length; index < ilen; index++) {
+                        var aggregatex = aggregatesMap[index];
+                        if (aggregatex.id === aggId) {
+                            matchedAggregate = aggregatex;
+                            break;
+                        }
+                    }
+                    if (expression.variable[1].operator in logicalOperator) {
+                        result = logicalOperator[expression.variable[1].operator](matchedAggregate.value, expression.variable[1].values[0]);
+                    } else {
+                        BK.log("invalid operator:" + expression.variable[1].operator + " in rule:" + rule.id);
+                    }
+                  }
+                } else if (expression.variable[0].key === "AppInstall" && upshotEvent.params === "AppInstall"){
+                  if(expression.variable[0].operator === "occurence"){
+                    result = true;
+                  }
+                } else if(upshotEvent.timer !== undefined && expression.variable[0].values[0] !== undefined) {
+                  var time = expression.variable[0].values[0]
+                  time = time - (upshotEvent.timer === undefined ? 0 : upshotEvent.timer) > 0 ? time - (upshotEvent.timer === undefined ? 0 : upshotEvent.timer) : 0;
 
-                var time = expression.variable[0].values[0]
-                time = time - upshotEvent.timer > 0 ? time - upshotEvent.timer : 0
+                  if (time === 0) {
+                      result = true;
+                  }
+                }
+            } else if(expression.type === 'PreDefinedEvents' && expression.event === 'PageViews') {
+                var screenName = expression.variable[0].value[0],
+                screenTime = expression.variable[1].value
+                screenTime = screenTime - (upshotEvent.timer === undefined ? 0 : upshotEvent.timer) > 0 ? screenTime - (upshotEvent.timer === undefined ? 0 : upshotEvent.timer) : 0;
 
-                if (time === 0) {
+                if (screenTime === 0 && screenName === upshotEvent.params) {
                     result = true;
                 }
-            }
+            } else if (expression.type === 'PreDefinedEvents' && expression.event === 'Attribution') {
+                if(upshotEvent.params[expression.variable[0].key] === expression.variable[0].value[0]){
+                  result = true;
+                } else {
+                  result = false;
+                }
+            } else if (expression.type === 'PreDefinedEvents' && expression.event === 'Streak') {
+                if(expression.variable[0].operator === 'maxstreaklength'){
+                  var lenCompare = upshotEvent.longestStreak.length === undefined ? 0 : upshotEvent.longestStreak.length;
+                  if(expression.variable[0].values.operator === 'between'){
+                    result = logicalOperator[expression.variable[0].values.operator](lenCompare, expression.variable[0].values.values)
+                  } else {
+                    result = logicalOperator[expression.variable[0].values.operator](lenCompare, parseInt(expression.variable[0].values.values[0]))
+                  }
+                } else if(expression.variable[0].operator === 'currentstreaklength'){
+                  var lenCompare = upshotEvent.currentStreak.length === undefined ? 0 : upshotEvent.currentStreak.length;
+                  if(expression.variable[0].values.operator === 'between'){
+                    result = logicalOperator[expression.variable[0].values.operator](lenCompare, expression.variable[0].values.values)
+                  } else {
+                    result = logicalOperator[expression.variable[0].values.operator](lenCompare, parseInt(expression.variable[0].values.values[0]))
+                  }
+                } else if(expression.variable[0].operator === 'recentstreaklength'){
+                  var lenCompare = upshotEvent.recentStreak.length === undefined ? 0 : upshotEvent.recentStreak.length;
+                  if(expression.variable[0].values.operator === 'between'){
+                    result = logicalOperator[expression.variable[0].values.operator](lenCompare, expression.variable[0].values.values)
+                  } else {
+                    result = logicalOperator[expression.variable[0].values.operator](lenCompare, parseInt(expression.variable[0].values.values[0]))
+                  }
+                }
+              }
 
             return result;
 
@@ -829,7 +1073,7 @@ var $BK$; // global reference for BK library
             return matchedAggregate.value > 0;
         }
 
-        function evaluateCustomKeyEvents(variable, dataProvider, filterCode, operationVariable, rule, expSubType) {
+        function evaluateCustomKeyEvents(variable, dataProvider, filterCode, operationVariable, rule, expSubType, upshotEvent) {
             // find aggregate for this expression/singleFilter
 
             if (dataProvider === undefined) {
@@ -874,6 +1118,8 @@ var $BK$; // global reference for BK library
 
                 } else if (variable.key === dataProvider.attribute && dataProvider.attribute_values.indexOf(variable.value) > -1) {
                     found = true;
+                } else if (variable.type === "UnixTimestamp" && variable.key === dataProvider.attribute && dataProvider.sub_event == expSubType) {
+                  found = logicalOperator[variable.operator](upshotEvent.params[dataProvider.attribute], variable.value);
                 }
             }
 
@@ -901,39 +1147,42 @@ var $BK$; // global reference for BK library
          * last m months :: last 2 months( current month and previous month)
          * last y years ;: last 2 yesrs ( current year and previous year)
          */
-        function getLastNUtc(type, n) {
+        function getLastNUtc(type, n,timeZone, dashboardTimeString) {
 
             if (n < 1) {
                 throw "input should be >=1 ::" + type + ":" + n;
             }
 
-            var dayUtc = new Date();
             if (type === "years") {
-                return Date.UTC(dayUtc.getUTCFullYear() - (n - 1), 0, 1, 0, 0, 0, 0);
-            }
-
-            if (type === "months") {
-
-                var yr = dayUtc.getUTCFullYear() - (n / 12);
-                n = n % 12; // n [0, 11]
-
-                var m = 0;
-
-                var currentMonth = dayUtc.getUTCMonth();
-
-                if ((n - 1) > currentMonth) {
-                    yr = yr - 1;
-                    m = (currentMonth + 12) - (n - 1);
+                if(timeZone === 'dashboardtimezone' && dashboardTimeString !== 'null'){
+                  var d = new Date();
+                  var c = d.toLocaleString('en-US', { timeZone: dashboardTimeString });
+                  var today = new Date(c)
+                  return Date.UTC(today.getFullYear() - (n - 1), 0, 1, 0, 0, 0, 0);
+                } else if (timeZone === 'usertimezone') {
+                  var today = new Date();
+                  return Date.UTC(today.getFullYear() - (n - 1), 0, 1, 0, 0, 0, 0);
                 } else {
-                    m = currentMonth - (n - 1);
+                  var today = new Date();
+                  return Date.UTC(today.getUTCFullYear() - (n - 1), 0, 1, 0, 0, 0, 0);
                 }
-
-                return Date.UTC(yr, m, 1, 0, 0, 0, 0);
-
             }
-
+            if (type === "months") {
+                if (timeZone === 'dashboardtimezone' && dashboardTimeString !== null) {
+                    var d = new Date();
+                    var c = d.toLocaleString('en-US', { timeZone: dashboardTimeString });
+                    var today = new Date(c)
+                    return Date.UTC(today.getFullYear(), (today.getMonth() - (n - 1)), 1, 0, 0, 0, 0);
+                } else if (timeZone === 'usertimezone') {
+                    var today = new Date();
+                    return Date.UTC(today.getFullYear(), (today.getMonth() - (n - 1)), 1, 0, 0, 0, 0);
+                } else {
+                    var today = new Date();
+                    return Date.UTC(today.getUTCFullYear(), (today.getUTCMonth() - (n - 1)), 1, 0, 0, 0, 0);
+                }
+            }
             if (type === "days") {
-                return bkDate.utcToday() - (86400000 * (n - 1));
+                return bkDate.utcToday(timeZone, dashboardTimeString) - (86400000 * (n - 1));
             }
 
         }
@@ -958,70 +1207,42 @@ var $BK$; // global reference for BK library
                 // processed aggregate and its
                 // metadata, now have to check
                 // expression
+                if(variable.date_range.type === "xt_pd"){
+                  var days = Object.keys(dayCountMap);
 
-                var days = Object.keys(dayCountMap);
+                  var todayUtc = bkDate.utcToday(dataProvider.timezone, dataProvider.dtz);
+                  var givenDaysCount = parseInt(variable.date_range.values[0])/* [0] in xt_pd indicates number of days */;
+                  var lastNdayUtc = getLastNUtc(dataProvider.slidingType, givenDaysCount, dataProvider.timezone, dataProvider.dtz);
 
-                var todayUtc = bkDate.utcToday();
-                var givenDaysCount = parseInt(variable.date_range.values[0])/* [0] in xt_pd indicates number of days */;
-                var lastNdayUtc = getLastNUtc(dataProvider.slidingType, givenDaysCount);
+                  var requiredDayUtcs = [];
+                  for (var day in dayCountMap) {
+                      var dayNum = parseInt(day);
 
-                var requiredDayUtcs = [];
-                for (var day in dayCountMap) {
-                    var dayNum = parseInt(day);
+                      if (lastNdayUtc <= dayNum && dayNum <= todayUtc) {
+                          requiredDayUtcs.push(dayNum);
+                      }
+                  }
+                } else if(variable.date_range.type === "xt_pm"){
+                  var months = Object.keys(dayCountMap);
 
-                    if (lastNdayUtc <= dayNum && dayNum <= todayUtc) {
-                        requiredDayUtcs.push(dayNum);
-                    }
+                  var currentMonthUtc = bkDate.utcCurrentMonth(dataProvider.timezone, dataProvider.dtz);
+                  var givenMonthsCount = parseInt(variable.date_range.values[0])/* [0] in xt_pm indicates number of months */;
+                  var lastNMonthUtc = getLastNUtc(dataProvider.slidingType, givenMonthsCount, dataProvider.timezone, dataProvider.dtz);
+
+                  var requiredMonthUtcs = [];
+                  for (var day in dayCountMap) {
+                      var dayNum = parseInt(day);
+
+                      if (lastNMonthUtc <= dayNum && dayNum <= currentMonthUtc) {
+                          requiredMonthUtcs.push(dayNum);
+                      }
+                  }
                 }
-
-                // Existing version
-
-                // if (requiredDayUtcs.length === givenDaysCount) {
-                //     var i = 0;
-                //     if (variable.date_range.type === "xt_n") {
-                //         var totalCount = 0;
-                //
-                //         for (; i < requiredDayUtcs.length; i++) {
-                //             var day = requiredDayUtcs[i];
-                //
-                //             totalCount += dayCountMap[day];
-                //
-                //         }
-                //
-                //         var logicalResult = logicalOperator[variable.date_range.operator](totalCount, parseInt(variable.date_range.values[1])/* 1 indicates days */);
-                //
-                //         return logicalResult;
-                //     } else {
-                //
-                //         for (; i < requiredDayUtcs.length; i++) {
-                //             var day = requiredDayUtcs[i];
-                //
-                //             if (variable.date_range.operator in logicalOperator) {
-                //
-                //                 var logicalResult = logicalOperator[variable.date_range.operator](dayCountMap[day], parseInt(variable.date_range.values[1])/* 1 indicates days */);
-                //
-                //                 if (!logicalResult) { // failure case
-                //                     break;
-                //                 }
-                //
-                //             } else {
-                //                 // TODO
-                //                 BK.log("operator '" + variable.operator + "' not in util methods");
-                //             }
-                //
-                //         }
-                //         if (i == givenDaysCount) {
-                //             // check if there is any operation variable
-                //             //FIXME return aggregates here...
-                //             return true;
-                //         }
-                //     }
-                // }
 
                 // WIP version
 
                 var i = 0;
-                if (variable.date_range.type === "xt_pd" && variable.date_range.subType === 'ntimes') {
+                if (variable.date_range.type === "xt_pd" && (variable.date_range.subType === 'ntimes' || variable.date_range.subType === 'gtentimes')) {
                     var totalCount = 0;
 
                     for (; i < requiredDayUtcs.length; i++) {
@@ -1030,10 +1251,11 @@ var $BK$; // global reference for BK library
                         totalCount += dayCountMap[day];
 
                     }
-
+                    
                     var logicalResult = logicalOperator[variable.date_range.operator](totalCount, parseInt(variable.date_range.values[1])/* 1 indicates days */);
-
                     return logicalResult;
+
+                    
                 } else if (variable.date_range.type === "xt_pd" && variable.date_range.subType !== 'ntimes' && requiredDayUtcs.length === givenDaysCount) {
 
                     for (; i < requiredDayUtcs.length; i++) {
@@ -1058,6 +1280,52 @@ var $BK$; // global reference for BK library
                         //FIXME return aggregates here...
                         return true;
                     }
+                } else if (variable.date_range.type === "xt_pm" && variable.date_range.subType !== "ntimes" && requiredMonthUtcs.length === givenMonthsCount) {
+
+                    for (; i < requiredMonthUtcs.length; i++) {
+                        var day = requiredMonthUtcs[i];
+
+                        if (variable.date_range.operator in logicalOperator) {
+
+                            var logicalResult = logicalOperator[variable.date_range.operator](dayCountMap[day], parseInt(variable.date_range.values[1])/* 1 indicates days */);
+
+                            if (!logicalResult) { // failure case
+                                break;
+                            }
+
+                        } else {
+                            // TODO
+                            BK.log("operator '" + variable.operator + "' not in util methods");
+                        }
+
+                    }
+                    if (i == givenMonthsCount) {
+                        // check if there is any operation variable
+                        //FIXME return aggregates here...
+                        return true;
+                    }
+                } else if(variable.date_range.type === "xt_pm" && (variable.date_range.subType === 'ntimes' || variable.date_range.subType === 'gtentimes')) {
+                  var totalCount = 0;
+
+                  for (; i < requiredMonthUtcs.length; i++) {
+                      var month = requiredMonthUtcs[i];
+
+                      totalCount += dayCountMap[month];
+
+                      var logicalResult = logicalOperator[variable.date_range.operator](totalCount, parseInt(variable.date_range.values[1])/* 1 indicates days */);
+
+                      if(!logicalResult){
+                        break;
+                      }
+
+                  }
+
+                  if (i == givenMonthsCount) {
+                    // check if there is any operation variable
+                    //FIXME return aggregates here...
+                    return true;
+                }
+                  
                 }
 
                 // WIP end
@@ -1093,6 +1361,8 @@ var $BK$; // global reference for BK library
                             v1.filters.forEach(function (v2, k2){
                                 if (v2.type === 'single' && v2.expression.event === 'Sessions') {
                                     timers.push(v2.expression.variable[0].values[0])
+                                } else if(v2.type === 'single' && v2.expression.event === 'PageViews'){
+                                    screenTimers.push(v2.expression.variable[1].value)
                                 }
                             })
                         }
@@ -1195,7 +1465,8 @@ var $BK$; // global reference for BK library
 
         var pushInboxNotifications = [],
             pushRuleIds = [],
-            pushCampaignIds = [];
+            pushCampaignIds = [],
+            streakInboxNotifications = [];
 
         BK.processInbox = function(inboxJSONString, payloadJSONString) {
             var inbox = JSON.parse(inboxJSONString);
@@ -1203,6 +1474,7 @@ var $BK$; // global reference for BK library
             payload.AppVersion = payload.appVersion;
 
             var filteredInbox = [];
+            streakInboxNotifications = [];
 
             for (var index in inbox) {
                 if (inbox.hasOwnProperty(index)) {
@@ -1213,6 +1485,9 @@ var $BK$; // global reference for BK library
                         pushRuleIds.push(inbox[index].customData.bk.ruleId);
                         pushCampaignIds.push(message.customData.bk.campaignId);
                         continue;
+                    } else if (message.customData.bk.activity[0].type === 17) {
+                      streakInboxNotifications.push(inbox[index]);
+                      continue;
                     }
 
                     BK.log("Parsing messageID :" + message.msgId);
@@ -1232,6 +1507,37 @@ var $BK$; // global reference for BK library
             }
 
             return filteredInbox;
+        };
+
+        BK.processActivity = function(inboxJSONString, dataJSONstring) {
+            var data = JSON.parse(dataJSONstring);
+            var inbox = JSON.parse(inboxJSONString);
+            var payload = {};
+            var flagCheck = false;
+            payload.AppVersion = data.appVersion;
+            payload.Platform = data.Platform;
+            payload.sdkVersion = data.sdkVersion;
+            payload.PushToken = data.PushToken;
+
+            for (var index in inbox) {
+                if (inbox.hasOwnProperty('filters')) {
+                    var message = inbox.filters
+                    // check if message contains filter ?
+                    var filter = message[0];
+                    if (filter) {
+                        var result = evaluate(filter, undefined, payload, undefined, true);
+                        if (result == false) {
+                            flagCheck = false;
+                        } else {
+                            flagCheck = true;
+                        }
+                    } else {
+                        flagCheck = false;
+                    }
+                }
+            }
+
+            return flagCheck;
         };
 
         var surveyRule = [],
@@ -1264,7 +1570,107 @@ var $BK$; // global reference for BK library
          */
 
         var currentLocation;
-        var timers = []
+        var timers = [];
+        var screenTimers = [];
+
+        BK.getStreakData = function(){
+          return streakPayloadsFromServer;
+        };
+
+        BK.processStreakData = function(streakJsonString, onSuccess){
+            BK.log("processing streak... ");
+
+            var streakPayload = JSON.parse(streakJsonString);
+            streakPayloadsFromServer =  streakPayload;
+            for(var i = 0 ; i < rules.length ; i++){
+              var rule = rules[i];
+              for(var j = 0 ; j < streakPayload.streakData.length ; j++){
+                if(rule.filter.filters[0].filters[0].expression.variable[0].key === streakPayload.streakData[j].streakId){
+                  var streakEvaluated = evaluate(rule.filter, rule, streakPayload.streakData[j], undefined, undefined, onSuccess);
+                }
+              }
+
+              if (typeof onSuccess === "function") {
+                if (streakEvaluated) {
+                    BK.log("Executed Rule for Name " + rule.name);
+                    if (pushRuleIds.indexOf(rule.id) !== -1) {
+                        pushInboxNotifications.forEach(function(val, key) {
+
+                            if (val.customData.bk.ruleId === rule.id) {
+                                if (pushRepeatCounts[val.customData.bk.campaignId] > 0) {
+                                    rule.notification = undefined;
+                                    return;
+                                } else {
+                                    pushRepeatCounts[val.customData.bk.campaignId] = 1;
+                                }
+
+                                var payloadData = val.customData.bk.activity[0].data,
+                                appData = val.customData.app;
+
+                                if (BK_PLATFORM === "iOS" || BK_PLATFORM === "Unity_iOS") {
+
+                                    var iOSPayload = {
+                                        "aps": {
+                                            "alert": {}
+                                        },
+                                        "appData": {},
+                                        "bk_mdata": {}
+                                    }
+
+                                    appData.forEach(function (val1, key1){
+                                        iOSPayload.appData[val1.key] = val1.ios_value
+                                    })
+
+                                    iOSPayload.aps.alert.title = payloadData.ios_title ? payloadData.ios_title: '';
+                                    iOSPayload.aps.alert.subtitle = payloadData.ios_sub_title ? payloadData.ios_sub_title: '';
+                                    iOSPayload.aps.alert.body = payloadData.message ? payloadData.message: '';
+                                    iOSPayload.aps.badge = payloadData.badge ? payloadData.badge: '';
+                                    iOSPayload.aps.category = payloadData.iosCategory ? payloadData.iosCategory : '';
+                                    iOSPayload.aps.sound = payloadData.sound ? payloadData.sound: '';
+                                    iOSPayload.bk = val.msgId;
+                                    iOSPayload.bk_mdata.cid = val.customData.bk.campaignId;
+                                    iOSPayload.bk_mdata.msgId = val.msgId;
+                                    // FIXME hardcoded here. Change after payload updates.
+                                    iOSPayload.bk_mdata.activity = true;
+                                    iOSPayload.bk_mdata.isLocal = true;
+
+
+                                    rule.notification = iOSPayload;
+                                } else if (BK_PLATFORM === "Android" || BK_PLATFORM === "Unity_Android") {
+
+                                    var AndroidPayload = {
+                                        "appData": {}
+                                    }
+
+                                    appData.forEach(function (val1, key1){
+                                        AndroidPayload.appData[val1.key] = val1.ios_value
+                                    })
+                                    AndroidPayload.bk = val.msgId;
+                                    AndroidPayload.alert = payloadData.message ? payloadData.message : '';
+                                    AndroidPayload.sound = payloadData.sound ? payloadData.sound : '';
+                                    AndroidPayload.title = payloadData.title ? payloadData.title : '';
+                                    AndroidPayload.fileName = payloadData.fileName ? payloadData.fileName : '';
+                                    AndroidPayload.bundle_url = payloadData.bundle_url ? payloadData.bundle_url : '';
+                                    AndroidPayload.isLocal = true;
+
+                                    rule.notification = AndroidPayload;
+                                }
+                            }
+                        })
+                    }
+                    // rule.notification = BK_PLATFORM;
+                    onSuccess(rule.id, rule.name, rule.notification, JSON.stringify(keywords));
+                }
+            } else if (typeof onSuccess !== 'undefined') {
+                BK.log("callback 'onSuccess' should be a function.");
+            }
+            }
+        };
+
+        function isStreakRule(ruleId){
+          var evalData = streakInboxNotifications.filter(row => row.customData.bk.activity[0].data.ruleId === ruleId);
+          return evalData;
+        }
 
         BK.processEvent = function(eventJsonString, onSuccess, instasenseCallback) {
             BK.log("processing event... ");
@@ -1382,8 +1788,235 @@ var $BK$; // global reference for BK library
                             })
                         }
                         // rule.notification = BK_PLATFORM;
-                        onSuccess(rule.id, rule.name, rule.notification, JSON.stringify(keywords));
 
+                        var isStreak = isStreakRule(rule.id);
+                        if(isStreak.length > 0){
+                          //processStreakValues
+                          streakPayloadsFromServer.streakData.forEach((val, key) => {
+                            if(val.streakId === isStreak[0].customData.bk.activity[0].data.streakId){
+                              var currentUTCDate = new Date((new Date().getTime()) + new Date().getTimezoneOffset() * 60000);
+                              var campExpiryDate = isStreak[0].date;
+                              var campStartDate = isStreak[0].startDate;
+                              if(campExpiryDate.toString().length < 13){
+                                campExpiryDate = campExpiryDate*1000
+                              }
+                              if(campStartDate.toString().length < 13){
+                                campStartDate = campStartDate*1000
+                              }
+                              if(currentUTCDate < new Date(campStartDate) || currentUTCDate > new Date(campExpiryDate)){
+                                return;
+                              }
+                              if(val.timeZone === 'utc'){
+                                var currentTime = (new Date().getTime()) + new Date().getTimezoneOffset() * 60000;
+                              } else if (val.timeZone === 'usertimezone') {
+                                var currentTime = (new Date().getTime());
+                              } else if (val.timeZone === 'dashboardtimezone') {
+                                var currentTime = (new Date().getTime());
+                                var d = new Date(currentTime);
+                                var c = d.toLocaleString('en-US', {timeZone: data.dashboardTimeZone});
+                                var sensibleFormat = new Date(c)
+                                currentTime = sensibleFormat.getTime();
+                              }
+                              var longestDoc = val.longestStreak,
+                              recentDoc = val.recentStreak,
+                              latestDoc = val.currentStreak;
+
+                              if(Object.keys(longestDoc).length === 0 && Object.keys(recentDoc).length === 0 && Object.keys(latestDoc).length === 0){
+                                if(isStreak[0].customData.bk.activity[0].data.frequency === 'everytime'){
+                                  val.longestStreak = {
+                                                'startDate': currentTime,
+                                                'endDate': currentTime,
+                                                'length': 1
+                                                }
+                                  val.recentStreak = val.longestStreak
+                                  val.currentStreak = val.longestStreak
+                                } else if(isStreak[0].customData.bk.activity[0].data.frequency === 'onceaday') {
+                                  val.longestStreak = {
+                                                'startDate': currentTime,
+                                                'endDate': currentTime,
+                                                'length': 1
+                                                }
+                                  val.recentStreak = val.longestStreak
+                                  val.currentStreak = val.longestStreak
+                                } else if(isStreak[0].customData.bk.activity[0].data.frequency === 'onceaweek') {
+                                  var curr = new Date(currentTime); // get current date
+                                  var first = curr.getDate() - curr.getDay(); // First day is the day of the month - the day of the week
+                                  var firstday = new Date(curr.setDate(first));
+
+                                  val.longestStreak = {
+                                                'startDate': Math.floor(new Date(firstday).getTime()),
+                                                'endDate': Math.floor(new Date(firstday).getTime()),
+                                                'length': 1
+                                                }
+                                  val.recentStreak = val.longestStreak
+                                  val.currentStreak = val.longestStreak
+
+                                } else if(isStreak[0].customData.bk.activity[0].data.frequency === 'onceamonth') {
+                                  var date = new Date(currentTime);
+                                  var firstDay = new Date(date.getFullYear(), date.getMonth(), 1, date.getHours(), date.getMinutes());
+
+                                  val.longestStreak = {
+                                                'startDate': Math.floor(firstDay.getTime()),
+                                                'endDate': Math.floor(firstDay.getTime()),
+                                                'length': 1
+                                                }
+                                  val.recentStreak = val.longestStreak
+                                  val.currentStreak = val.longestStreak
+
+                                } else if(isStreak[0].customData.bk.activity[0].data.frequency === 'onceayear') {
+                                  var currentYear = new Date(currentTime).getFullYear();
+                                  var firstDayOfYear = new Date(currentYear, 0, 1, new Date(currentTime).getHours(), new Date(currentTime).getMinutes());
+
+                                  val.longestStreak = {
+                                                'startDate': Math.floor(firstDayOfYear.getTime()),
+                                                'endDate': Math.floor(firstDayOfYear.getTime()),
+                                                'length': 1
+                                                }
+                                  val.recentStreak = val.longestStreak
+                                  val.currentStreak = val.longestStreak
+                                }
+                              } else {
+                                if(val.streakFrequency === "everytime"){
+                                  val.longestStreak.endDate = currentTime
+                                  val.longestStreak.length += 1;
+                                  val.recentStreak.endDate = currentTime
+                                  val.recentStreak.length += 1;
+                                  val.currentStreak.endDate = currentTime
+                                  val.currentStreak.length += 1;
+
+                                } else if(val.streakFrequency === "onceaday") {
+                                  if(latestDoc.endDate.toString().length < 13){
+                                    var streakEndTime = latestDoc.endDate * 1000;
+                                  } else {
+                                    var streakEndTime = latestDoc.endDate;
+                                  }
+
+                                  var currentDate = new Date(currentTime);
+                                  var currentDateExcludeTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+                                  var streakDate = new Date(streakEndTime);
+                                  var streakDateExcludeTime = new Date(streakDate.getFullYear(), streakDate.getMonth(), streakDate.getDate());
+
+                                  if(Math.ceil((currentDateExcludeTime.getTime() - streakDateExcludeTime.getTime())/(1000 * 60 * 60 * 24)) === 1){
+                                    val.currentStreak.endDate = currentTime;
+                                    val.currentStreak.length += 1;
+                                    if(val.longestStreak.length < val.currentStreak.length + 1){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  } else if(Math.ceil((currentDateExcludeTime.getTime() - streakDateExcludeTime.getTime())/(1000 * 60 * 60 * 24)) !== 0){
+                                    val.recentStreak = val.currentStreak;
+                                    val.currentStreak = {
+                                      'startDate': currentTime,
+                                      'endDate': currentTime,
+                                      'length' : 1
+                                    };
+
+                                    if(val.longestStreak.length === val.currentStreak.length){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  }
+                                } else if(val.streakFrequency === "onceaweek") {
+                                  if(latestDoc.endDate.toString().length < 13){
+                                    var streakEndTime = latestDoc.endDate * 1000;
+                                  } else {
+                                    var streakEndTime = latestDoc.endDate;
+                                  }
+                                  var curr = new Date(currentTime); // get current date
+                                  var first = curr.getDate() - curr.getDay(); // First day is the day of the month - the day of the week
+                                  var firstday = new Date(curr.setDate(first));
+
+                                  var currentWeekExcludeTime = new Date(firstday.getFullYear(), firstday.getMonth(), firstday.getDate());
+                                  var streakDate = new Date(streakEndTime);
+                                  var streakDateExcludeTime = new Date(streakDate.getFullYear(), streakDate.getMonth(), streakDate.getDate());
+
+                                  if(Math.ceil((currentWeekExcludeTime.getTime() - streakDateExcludeTime.getTime())/(1000 * 60 * 60 * 24)) === 7){ //compare weeks
+                                    val.currentStreak.endDate = Math.floor(firstday.getTime());
+                                    val.currentStreak.length += 1;
+                                    if(val.longestStreak.length < val.currentStreak.length + 1){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  } else if(Math.ceil((currentWeekExcludeTime.getTime() - streakDateExcludeTime.getTime())/(1000 * 60 * 60 * 24)) !== 0){
+                                    val.recentStreak = val.currentStreak;
+                                    val.currentStreak = {
+                                      'startDate': Math.floor(new Date(firstday).getTime()),
+                                      'endDate': Math.floor(new Date(firstday).getTime()),
+                                      'length' : 1
+                                    };
+
+                                    if(val.longestStreak.length === val.currentStreak.length){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  }
+                                } else if(val.streakFrequency === "onceamonth") {
+                                  var date = new Date(currentTime);
+                                  var firstDay = new Date(date.getFullYear(), date.getMonth(), 1, date.getHours(), date.getMinutes());
+
+                                  if(latestDoc.endDate.toString().length < 13){
+                                    var streakEndTime = latestDoc.endDate * 1000;
+                                  } else {
+                                    var streakEndTime = latestDoc.endDate;
+                                  }
+                                  var d1 = new Date(currentTime);
+                                  var d2 = new Date(streakEndTime)
+                                  var months;
+                                  months = (d1.getFullYear() - d2.getFullYear()) * 12;
+                                  months -= d2.getMonth();
+                                  months += d1.getMonth();
+                                  if(months === 1){ //compare months
+                                    val.currentStreak.endDate = Math.floor(firstDay.getTime());
+                                    val.currentStreak.length += 1;
+                                    if(val.longestStreak.length < val.currentStreak.length + 1){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  } else if(months !== 0){
+                                    val.recentStreak = val.currentStreak;
+                                    val.currentStreak = {
+                                      'startDate': Math.floor(firstDay.getTime()),
+                                      'endDate': Math.floor(firstDay.getTime()),
+                                      'length' : 1
+                                    };
+
+                                    if(val.longestStreak.length === val.currentStreak.length){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  }
+                                } else if(val.streakFrequency === "onceayear") {
+                                  if(latestDoc.endDate.toString().length < 13){
+                                    var streakEndTime = latestDoc.endDate * 1000;
+                                  } else {
+                                    var streakEndTime = latestDoc.endDate;
+                                  }
+                                  var currentYear = new Date(currentTime).getFullYear();
+                                  var firstDayOfYear = new Date(currentYear, 0, 1, new Date(currentTime).getHours(), new Date(currentTime).getMinutes());
+
+                                  var date1 = new Date(currentTime);
+                                  var date2 = new Date(streakEndTime);
+                                  var yearsDiff =  date1.getFullYear() - date2.getFullYear();
+
+                                  if(yearsDiff === 1){ //compare years
+                                    val.currentStreak.endDate = Math.floor(firstDayOfYear.getTime());
+                                    val.currentStreak.length += 1;
+                                    if(val.longestStreak.length < val.currentStreak.length + 1){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  } else if(yearsDiff !== 0){
+                                    val.recentStreak = val.currentStreak;
+                                    val.currentStreak = {
+                                      'startDate': Math.floor(firstDayOfYear.getTime()),
+                                      'endDate': Math.floor(firstDayOfYear.getTime()),
+                                      'length' : 1
+                                    };
+                                    if(val.longestStreak.length === val.currentStreak.length){
+                                      val.longestStreak = val.currentStreak
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          });
+                          BK.processStreakData(JSON.stringify(streakPayloadsFromServer), onSuccess);
+                        } else {
+                          onSuccess(rule.id, rule.name, rule.notification, JSON.stringify(keywords));
+                        }
                     }
                 } else if (typeof onSuccess !== 'undefined') {
                     BK.log("callback 'onSuccess' should be a function.");
@@ -1403,6 +2036,9 @@ var $BK$; // global reference for BK library
             if (upshotEvent.subtype === 'Sessions') {
                 var nextTimer = getLatestTimer(upshotEvent.timer)
                 onSuccess(undefined, undefined, undefined, undefined, nextTimer)
+            } else if(upshotEvent.subtype === 'PageViews'){
+                var nextScreenTimer = getLatestTimer(upshotEvent.timer, upshotEvent.params)
+                onSuccess(undefined, undefined, undefined, "PageViews", nextScreenTimer, upshotEvent.params)
             }
 
             if (upshotEvent.type === 4) {
@@ -1423,7 +2059,8 @@ var $BK$; // global reference for BK library
             }
         };
 
-        function getLatestTimer(time) {
+        function getLatestTimer(time, param) {
+          if(param === undefined || param === null){
             timers.sort(function(a, b){return a - b})
 
             var result = 0
@@ -1436,6 +2073,20 @@ var $BK$; // global reference for BK library
                     return true;
                 }
             })
+          } else {
+            screenTimers.sort(function(a, b){return a - b})
+
+            var result = 0
+
+            screenTimers.every(function (val, key){
+                if (val - time > 0) {
+                    result = val - time
+                    return false;
+                } else {
+                    return true;
+                }
+            })
+          }
 
             return result;
         }
